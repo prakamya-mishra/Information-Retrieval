@@ -1,26 +1,24 @@
 import os
-import nltk
-from nltk.stem import PorterStemmer
-from nltk.tokenize import sent_tokenize, word_tokenize
+import indexer
 
-ps = PorterStemmer()
+# Check for inverted-index.csv
+path_dir = os.path.abspath('.')
+if not os.path.exists(os.path.join(path_dir, 'inverted-index.csv')):
+    print('inverted-index.csv not found...\nGenerating one for you!')
+    indexer.createCSVFile()
+    print('Required files generated!')
 
-
+# Parsing document-list.txt
 documentList = []
-documentsProcessedWords = {}
-documentCount = 0
-for file in os.listdir("./dataset"):
-    documentCount = documentCount + 1
-    if file.endswith(".txt"):
-        documentList.append(str(file))
-        with open('dataset/'+file, 'r') as myfile:
-            data = myfile.read()
-            words = word_tokenize(data)
-            for w in words:
-                if w not in documentsProcessedWords:
-                    documentsProcessedWords[w] = {str(documentCount)}
-                else:
-                    documentsProcessedWords[w].add(str(documentCount))
-print(documentsProcessedWords)
-                
-
+with open('document-list.txt') as inputFile:
+    documentList = inputFile.read().splitlines()
+# Parsing inverted-index.csv
+invertedIndex = {}
+with open('inverted-index.csv') as inputFile:
+    line = inputFile.readline()
+    while line != '':
+        line = line.rstrip('\n')
+        separatedCsvRow = line.split(',')
+        invertedIndex[separatedCsvRow.pop(0)] = separatedCsvRow
+        line = inputFile.readline()
+print(invertedIndex)

@@ -1,3 +1,7 @@
+# Processed Files
+inverted-index.csv
+document-list.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
