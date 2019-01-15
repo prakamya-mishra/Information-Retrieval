@@ -23,9 +23,9 @@ def createCSVFile():
                 # Adding stemmed words into inverted index
                 for word in words:
                     if word not in invertedIndex:
-                        invertedIndex[word] = set(str(documentId))
+                        invertedIndex[stemmer.stem(word).lower()] = set(str(documentId))
                     elif documentId not in invertedIndex[word]:
-                        invertedIndex[word].add(str(documentId))
+                        invertedIndex[stemmer.stem(word).lower()].add(str(documentId))
 
     # Save as CSV
     with open('inverted-index.csv', 'w') as outputFile:
