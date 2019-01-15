@@ -17,10 +17,10 @@ for file in os.listdir("./dataset"):
             data = myfile.read()
             words = word_tokenize(data)
             for w in words:
-                if not documentsProcessedWords.has_key(w):
+                if w not in documentsProcessedWords:
                     documentsProcessedWords[w] = {str(documentCount)}
                 else:
                     documentsProcessedWords[w].add(str(documentCount))
-print documentsProcessedWords
+print(documentsProcessedWords)
                 
 
