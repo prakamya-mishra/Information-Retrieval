@@ -1,5 +1,9 @@
 import os
 import indexer
+from nltk.stem import PorterStemmer
+
+# Initialize Stemmer
+stemmer = PorterStemmer()
 
 # Check for inverted-index.csv
 path_dir = os.path.abspath('.')
@@ -21,4 +25,28 @@ with open('inverted-index.csv') as inputFile:
         separatedCsvRow = line.split(',')
         invertedIndex[separatedCsvRow.pop(0)] = separatedCsvRow
         line = inputFile.readline()
-print(invertedIndex)
+
+# Parsing queries
+while True:
+    query = input('Enter your query (q to quit):')
+    if query.lower() == 'q':
+        break
+    else:
+        # As of now supports only AND queries
+        queryTerms = query.lower().split(' and ')
+        termIndices = []
+        for term in queryTerms:
+            try:
+                termIndices.append(set(invertedIndex[stemmer.stem(term)]))
+            except:
+                print(term + ': Not Found - ignoring')
+
+        resultSet = set()
+        for termIndex in termIndices:
+            if len(resultSet) == 0:
+                resultSet = termIndex
+            else:
+                resultSet = resultSet.intersection(termIndex)
+        for docId in resultSet:
+            print(documentList[int(docId)])
+        

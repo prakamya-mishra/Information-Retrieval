@@ -22,10 +22,11 @@ def createCSVFile():
                 words = word_tokenize(data)
                 # Adding stemmed words into inverted index
                 for word in words:
-                    if word not in invertedIndex:
-                        invertedIndex[stemmer.stem(word).lower()] = set(str(documentId))
-                    elif documentId not in invertedIndex[word]:
-                        invertedIndex[stemmer.stem(word).lower()].add(str(documentId))
+                    stemmedWord = stemmer.stem(word).lower()
+                    if stemmedWord not in invertedIndex:
+                        invertedIndex[stemmedWord] = set(str(documentId))
+                    elif documentId not in invertedIndex[stemmedWord]:
+                        invertedIndex[stemmedWord].add(str(documentId))
 
     # Save as CSV
     with open('inverted-index.csv', 'w') as outputFile:
