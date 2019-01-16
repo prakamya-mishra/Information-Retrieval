@@ -24,14 +24,17 @@ def createCSVFile():
                 for word in words:
                     stemmedWord = stemmer.stem(word).lower()
                     if stemmedWord not in invertedIndex:
-                        invertedIndex[stemmedWord] = set(str(documentId))
+                        invertedIndex[stemmedWord] = { documentId }
                     elif documentId not in invertedIndex[stemmedWord]:
-                        invertedIndex[stemmedWord].add(str(documentId))
+                        invertedIndex[stemmedWord].add(documentId)
 
     # Save as CSV
     with open('inverted-index.csv', 'w') as outputFile:
         for word in invertedIndex:
-            indexRow = word + ',' + ','.join(sorted(invertedIndex[word])) + '\n'
+            sortedDocIds = sorted(invertedIndex[word])
+            for i in range(len(sortedDocIds)):
+                sortedDocIds[i] = str(sortedDocIds[i])
+            indexRow = word + ',' + ','.join(sortedDocIds) + '\n'
             outputFile.write(indexRow)
     # Save Document Id List
     with open('document-list.txt', 'w') as outputFile:
