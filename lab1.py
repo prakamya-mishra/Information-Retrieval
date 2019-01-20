@@ -2,119 +2,156 @@ import os, click, nltk
 from nltk.stem import PorterStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 
-def createCSVFile():
-    # Initialize Data Structures
-    documentList = []
-    invertedIndex = {}
-    documentId = -1
+class IndexRow:
+  def __init__(self):
+    self.container = list()
+    self.length = 0
 
-    # Initialize Stemmer
-    stemmer = PorterStemmer()
+  def insert(self, value):
+    # Adds an item in such a manner that contents are sorted
+    # in ascending order and no duplicates are included
+    if self.length == 0:
+      self.container.append(value)
+      self.length = 1
+      return
+    tmp = list()
+    for i in range(self.length):
+      containerValue = self.container[i]
+      if value == containerValue:
+        return
+      if value < containerValue:
+        tmp.append(value)
+      tmp.append(containerValue)
+      if i == self.length - 1 and value > containerValue:
+        tmp.append(value)
+    self.container = tmp
+    self.length += 1
+    
+  def __str__(self):
+    output = ''
+    if self.length > 0:
+      output = str(self.container[0])
+      for i in range(1, self.length):
+        output += ',' + str(self.container[i])
+    return output
 
-    # Iterating all files in 'dataset' directory
-    documents = [ document for document in os.listdir('./dataset') if document.endswith('.txt') ]
+  def __lt__(self, other):
+    return self.length < other.length
+
+  def AND(self, other):
+    # For optimization, assuming self to be smaller in length
+    tmp = IndexRow()
+    i, j = 0, 0
+    if other < self:
+      self, other = other, self
+    while i < self.length:
+      if self.container[i] < other.container[j]:
+        i += 1
+      elif self.container[i] > other.container[j]:
+        j += 1
+      else:
+        tmp.insert(self.container[i])
+        i += 1
+        j += 1
+    return tmp
+
+  def OR(self, other):
+    tmp = IndexRow()
+    i, j = 0, 0
+    while i < self.length or j < other.length:
+      if self.container[i] < other.container[j]:
+        tmp.insert(self.container[i])
+        i = i+1 if self.length - 1 > i else i
+      elif self.container[i] > other.container[j]:
+        tmp.insert(other.container[j])
+        j = j+1 if other.length - 1 > j else j
+      else:
+        tmp.insert(self.container[i])
+        i = i+1 if self.length - 1 > i else i
+        j = j+1 if other.length - 1 > j else j
+    return tmp
+
+  def NOT(self, universal):
+    # self is smaller than or equal to universal
+    tmp = IndexRow()
+    i, j = 0, -1
+    while i < self.length:
+      j += 1
+      if self.container[i] == universal[j]:
+        i += 1
+        continue
+      tmp.insert(universal[j])
+    return tmp
+
+
+
+
+
+class InvertedIndex:
+  def __init__(self):
+    self.container = dict()
+    self.docs = list()
+    self.universe = list()
+    self.stemmer = PorterStemmer()
+
+  def insert(self, word, value):
+    stemmedWord = self.stemmer.stem(word).lower()
+    if stemmedWord not in self.container.keys():
+      self.container[stemmedWord] = IndexRow()
+    self.container[stemmedWord].insert(value)
+
+  def fetch(self, word):
+    stemmedWord = self.stemmer.stem(word).lower()
+    return self.container[stemmedWord]
+
+  def generateFromDir(self, dirpath):
+    docId = -1
+
+    # List all required dataset documents
+    documents = [ document for document in os.listdir(dirpath) if document.endswith('.txt') ]
+    print('\n\nParsing all files in the given dataset ...')
+    print('Generating inverted-index ...')
+
+    # Show progressbar while processing files
     with click.progressbar(documents) as docs:
-        for file in docs:
-            documentId += 1
-            documentList.append(file.replace('.txt', ''))
-            # New Syntax: removes the need to write cleanup code ie. close() after open()
-            with open('dataset/'+file, 'r') as inputFile:
-                data = inputFile.read()
-                words = word_tokenize(data)
-                # Adding stemmed words into inverted index
-                for word in words:
-                    stemmedWord = stemmer.stem(word).lower()
-                    if stemmedWord not in invertedIndex:
-                        invertedIndex[stemmedWord] = { documentId }
-                    elif documentId not in invertedIndex[stemmedWord]:
-                        invertedIndex[stemmedWord].add(documentId)
+      for file in docs:
+        docId += 1
+        self.universe.append(docId)
+        self.docs.append(file.replace('.txt', ''))
+        # New Syntax: removes the need to write cleanup code ie. close() after open()
+        with open('dataset/' + file, 'r') as inputFile:
+          data = inputFile.read()
+          words = word_tokenize(data)
+          # Adding stemmed words into inverted index
+          for word in words:
+            self.insert(word, docId)
 
-    # Save as CSV
-    with open('inverted-index.csv', 'w') as outputFile:
-        for word in invertedIndex:
-            sortedDocIds = sorted(invertedIndex[word])
-            for i in range(len(sortedDocIds)):
-                sortedDocIds[i] = str(sortedDocIds[i])
-            indexRow = word + ',' + ','.join(sortedDocIds) + '\n'
-            outputFile.write(indexRow)
-    # Save Document Id List
-    with open('document-list.txt', 'w') as outputFile:
-        outputFile.write('\n'.join(documentList))
+  def createCSVFile(self, filename):
+    with open(filename, 'w') as outputFile:
+      for word in self.container:
+        print(word, self.container[word], sep=',', file=outputFile)
 
-# Initialize Stemmer
-stemmer = PorterStemmer()
+  def printDocList(self, docList):
+    for docId in docList:
+      print(self.docs[docId])
 
-# Check for inverted-index.csv
-path_dir = os.path.abspath('.')
-if not os.path.exists(os.path.join(path_dir, 'inverted-index.csv')):
-    print('inverted-index.csv not found...\nGenerating one for you!')
-    createCSVFile()
-    print('Required files generated!')
 
-# Parsing document-list.txt
-documentList = []
-with open('document-list.txt') as inputFile:
-    documentList = inputFile.read().splitlines()
-# Parsing inverted-index.csv
-invertedIndex = {}
-with open('inverted-index.csv') as inputFile:
-    line = inputFile.readline()
-    while line != '':
-        line = line.rstrip('\n')
-        separatedCsvRow = line.split(',')
-        invertedIndex[separatedCsvRow.pop(0)] = separatedCsvRow
-        line = inputFile.readline()
 
-# Parsing queries
-while True:
-    query = input('Enter your query (q to quit):')
+# MAIN Function
+if __name__ == '__main__':
+  invertedIndex = InvertedIndex()
+  invertedIndex.generateFromDir('./dataset')
+
+  # CSV Section
+  printCSV = input('Should we print a CSV for you(y or n)?')
+  if printCSV == 'y':
+    invertedIndex.createCSVFile('inverted-index.csv')
+  else:
+    print('Ignoring CSV ...')
+
+  # Query Section
+  while True:
+    query = input('Enter your query(q to quit):')
     if query.lower() == 'q':
         break
-    else:
-        # As of now supports only AND queries
-        queryTerms = query.lower().split(' and ')
-        termIndices = []
-        for term in queryTerms:
-            try:
-                termIndex = invertedIndex[stemmer.stem(term)]
-                docFrequency = len(termIndex)
-                termIndices.append((docFrequency, termIndex))
-            except:
-                print(term + ': Not Found - ignoring')
-
-
-        # Sort all required terms by their Document Frequency using insertion sort
-        if len(termIndices) > 1:
-            for i in range(len(termIndices)):
-                keyTerm = termIndices[i]
-                j = i-1
-                while (j > 0 and keyTerm[0] < termIndices[j][0]):
-                    termIndices[j+1] = termIndices[j]
-                    j -= 1
-                termIndices[j+1] = keyTerm
-        
-        # Using merge strategy for AND
-        result = list()
-        if len(termIndices) > 0:
-            result = termIndices.pop(0)[1]
-            while (len(termIndices) > 0):
-                curr = termIndices.pop(0)
-                currList = curr[1]
-                currLength = curr[0]
-                resultLength = len(result)
-                tmp = list()
-                i,j = 0,0
-                while i < resultLength:
-                    if int(result[i]) < int(currList[j]):
-                        i += 1
-                    elif int(result[i]) > int(currList[j]):
-                        j += 1
-                    else:
-                        tmp.append(result[i])
-                        i += 1
-                        j += 1
-                result = tmp
-
-        # Print Output of search
-        for docId in result:
-            print(documentList[int(docId)])        
+    
