@@ -1,8 +1,10 @@
-import os, click, nltk
+import os
+import click
+import pickle
 from nltk.stem import PorterStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 
-class IndexRow:
+class _IndexRow:
   def __init__(self):
     self.container = list()
     self.length = 0
@@ -40,7 +42,7 @@ class IndexRow:
 
   def AND(self, other):
     # For optimization, assuming self to be smaller in length
-    tmp = IndexRow()
+    tmp = _IndexRow()
     i, j = 0, 0
     if other < self:
       self, other = other, self
@@ -56,7 +58,7 @@ class IndexRow:
     return tmp
 
   def OR(self, other):
-    tmp = IndexRow()
+    tmp = _IndexRow()
     i, j = 0, 0
     while i < self.length or j < other.length:
       if self.container[i] < other.container[j]:
@@ -73,7 +75,7 @@ class IndexRow:
 
   def NOT(self, universal):
     # self is smaller than or equal to universal
-    tmp = IndexRow()
+    tmp = _IndexRow()
     i, j = 0, -1
     while i < self.length:
       j += 1
@@ -83,8 +85,28 @@ class IndexRow:
       tmp.insert(universal[j])
     return tmp
 
+class _StorageContainer:
 
-
+  def __init__(self, obj):
+    self.container = obj.container
+    self.docs = obj.docs
+    self.universe = obj.universe
+  
+  @staticmethod
+  def save(obj, filename):
+    storage_obj = _StorageContainer(obj)
+    with open(filename, 'wb') as obj_file:
+      pickle.dump(storage_obj, obj_file)
+  
+  @staticmethod
+  def load(obj, filename):
+    with open(filename, 'rb') as obj_file:
+      storage_obj = pickle.load(obj_file)
+      obj.container = dict(storage_obj.container)
+      obj.docs = list(storage_obj.docs)
+      obj.universe = list(storage_obj.universe)
+      del storage_obj
+    
 
 
 class InvertedIndex:
@@ -97,7 +119,7 @@ class InvertedIndex:
   def insert(self, word, value):
     stemmedWord = self.stemmer.stem(word).lower()
     if stemmedWord not in self.container.keys():
-      self.container[stemmedWord] = IndexRow()
+      self.container[stemmedWord] = _IndexRow()
     self.container[stemmedWord].insert(value)
 
   def fetch(self, word):
@@ -119,7 +141,7 @@ class InvertedIndex:
         self.universe.append(docId)
         self.docs.append(file.replace('.txt', ''))
         # New Syntax: removes the need to write cleanup code ie. close() after open()
-        with open('dataset/' + file, 'r') as inputFile:
+        with open(dirpath + '/' + file, 'r') as inputFile:
           data = inputFile.read()
           words = word_tokenize(data)
           # Adding stemmed words into inverted index
@@ -134,24 +156,12 @@ class InvertedIndex:
   def printDocList(self, docList):
     for docId in docList:
       print(self.docs[docId])
+  
+  def save(self, filename):
+    _StorageContainer.save(self, filename)
 
-
-
-# MAIN Function
-if __name__ == '__main__':
-  invertedIndex = InvertedIndex()
-  invertedIndex.generateFromDir('./dataset')
-
-  # CSV Section
-  printCSV = input('Should we print a CSV for you(y or n)?')
-  if printCSV == 'y':
-    invertedIndex.createCSVFile('inverted-index.csv')
-  else:
-    print('Ignoring CSV ...')
-
-  # Query Section
-  while True:
-    query = input('Enter your query(q to quit):')
-    if query.lower() == 'q':
-        break
-    
+  @classmethod
+  def load(cls, filename):
+    new_obj = cls()
+    _StorageContainer.load(new_obj, filename)
+    return new_obj
