@@ -1,6 +1,5 @@
 # Processed Files
-*.csv
-*.obj
+*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
