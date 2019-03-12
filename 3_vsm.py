@@ -18,7 +18,7 @@ docs = list()
 LEMMATIZER = WordNetLemmatizer()
 STOP_WORDS = set(stopwords.words('english'))
 
-## Generate Inverted Index and output as CSV
+## Generate Inverted Index and output as JSON
 
 def normalize(word):
   output = word.lower() # Case Folding
